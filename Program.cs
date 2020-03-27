@@ -6,6 +6,9 @@ using System.Text.Json;
 using System.Collections.Specialized;
 using System.Configuration;
 using System.Collections.Generic;
+using System.Net.Http;
+using System.Net.Http.Headers;
+using System.Threading.Tasks;
 
 namespace CHIPSQuickLog
 {
@@ -16,78 +19,64 @@ namespace CHIPSQuickLog
         bool canRemove = false;
         const ConsoleKey KEY_EMP_ADD = ConsoleKey.A;
         const ConsoleKey KEY_EMP_REMOVE = ConsoleKey.R;
+        static List<Command> commandList;
 
-        public static List<string> employees;
+        public static List<Employee> employees;
+        static HttpClient client = new HttpClient();
 
         static void Main(string[] args)
         {
+            // api connection settings
+            client.BaseAddress = new Uri("http://chipsmgr.com/");
+            client.DefaultRequestHeaders.Accept.Clear();
+            client.DefaultRequestHeaders.Accept.Add(
+                new MediaTypeWithQualityHeaderValue("application/json"));
+
+
+            // load employees list
             employees = LoadEmployees();
             ConsoleKey userInput;
             do
             {
+                // key returned by main menu is checked
                 userInput = MainMenu();
                 if (GetCommands().Contains(userInput))
                 {
-                    switch (userInput)
+                    // check add/removes
+                    if (userInput == KEY_EMP_ADD)
                     {
-                        case ConsoleKey.A:
-                            AddEmployee();
-                            break;
-                        default:
-                            Console.WriteLine("Not a valid command");
-                            break;
+                        AddEmployee();
+                        continue;
                     }
+                    if (userInput == KEY_EMP_REMOVE)
+                    {
+                        RemoveEmployee();
+                        continue;
+                    }
+
+                    // check through available number keys
+                    for (int i = 1; i <= employees.Count; i++)
+                    {
+                        // if keycode matches a position in employees list, submit with name
+                        if (userInput.Equals(Enum.Parse(typeof(ConsoleKey), "D" + i.ToString())))
+                        {
+                            SubmitLocalLog(employees[i-1]);
+                            continue;
+                        }
+                    }
+
+                    // if no statements above run, 
+                    Console.WriteLine("Not a valid command");
                 }
             } while (userInput != ConsoleKey.Escape);
-
-
-
-            //// idenfify state to present
-            //if (employees.Count == 0)
-            //{
-            //    // display message "no employees found" and only command to add employee
-            //    prompt.Append("No employees found.");
-            //}
-            //else if (employees.Count >= MAX_COUNT)
-            //{
-            //    if (employees.Count > MAX_COUNT)
-            //    {
-            //        // display message "too many employees found; displaying only the first MAX_COUNT"
-            //        prompt.Append($"More than {MAX_COUNT} employees were found and have been ignored.");
-
-            //    }
-            //    // display only remove
-            //}
-
-            //Console.WriteLine();
-            //string options = "";
-            //for (int i = 0; i < employees.Count; i++)
-            //{
-            //    options += $"{i + 1} : {employees[i]}\n";
-            //}
-
-            //string instructions =
-            //    "CHIPS Quick Log\n\n" +
-            //    "Helped a client who didn't check in a device?\n" +
-            //    "Select your number to log the current date and time:\n" +
-            //    options +
-            //    "\nPress Esc to Cancel\n";
-
-            //Console.SetWindowSize(80, 25);
-
-            //Console.Write(instructions);
-            //ConsoleKeyInfo pressedKey = Console.ReadKey();
-
-
-            //SubmitLocalLog("Kyle");
-
-            //Console.WriteLine("Press any key to close...");
-            //Console.ReadKey();
         }
 
+        // Returns list of available commands based on number of employees
         static List<ConsoleKey> GetCommands()
         {
             List<ConsoleKey> commands = new List<ConsoleKey>();
+            commands.Add(ConsoleKey.Escape);
+            commands.Add(ConsoleKey.Enter);
             if (employees.Count < MAX_COUNT) commands.Add(KEY_EMP_ADD);
             if (employees.Count > 0) commands.Add(KEY_EMP_REMOVE);
             for (int i = 1; i <= Math.Min(employees.Count, MAX_COUNT); i++)
@@ -98,6 +87,7 @@ namespace CHIPSQuickLog
             return commands;
         }
 
+        // Returns the key pressed on the main menu, used in Main to determine method to run
         static ConsoleKey MainMenu()
         {
             Console.Clear();
@@ -123,7 +113,7 @@ namespace CHIPSQuickLog
                 prompt.Append("Select your name:\n\n");
                 for (int i = 0; i < Math.Min(employees.Count, MAX_COUNT); i++)
                 {
-                    prompt.Append($"[{i + 1}] {employees[i]}\n");
+                    prompt.Append($"[{i + 1}] {employees[i].EmployeeName}\n");
                 }
                 prompt.Append("\n");
             }
@@ -145,10 +135,12 @@ namespace CHIPSQuickLog
         static void AddEmployee()
         {
             Console.Clear();
-            Console.WriteLine("Enter new employee name and press [Enter]. \n" +
+            Console.WriteLine("Add Employee \n" +
+                "Enter new employee name and press [Enter]. \n" +
                 "Press [Esc] to cancel.\n");
 
-            StringBuilder newEmployee = new StringBuilder();
+            StringBuilder newEmpName = new StringBuilder();
+            StringBuilder newUserName = new StringBuilder();
 
             // get first input
             ConsoleKeyInfo userInput = Console.ReadKey(true);
@@ -157,57 +149,104 @@ namespace CHIPSQuickLog
             while (userInput.Key != ConsoleKey.Enter && userInput.Key != ConsoleKey.Escape)
             {
                 // if backspace, delete char and move indicator back
-                if (userInput.Key == ConsoleKey.Backspace && newEmployee.Length > 0)
+                if (userInput.Key == ConsoleKey.Backspace && newEmpName.Length > 0)
                 {
                     Console.Write("\b \b");
-                    newEmployee.Remove(newEmployee.Length - 1, 1);
+                    newEmpName.Remove(newEmpName.Length - 1, 1);
                 }
                 // otherwise append char to name and write char to console
                 else
                 {
                     Console.Write(userInput.KeyChar);
-                    newEmployee.Append(userInput.KeyChar);
+                    newEmpName.Append(userInput.KeyChar);
                 }
                 // accept next input
                 userInput = Console.ReadKey(true);
             }
 
-            // if key to escape loop was enter, add to list of employees and save
+            // if key to escape loop was enter, now accept input for username
             if (userInput.Key == ConsoleKey.Enter)
             {
-                employees.Add(newEmployee.ToString());
-                SaveEmployees(employees);
+                Console.WriteLine("\nPlease enter your CHIPSMgr username: \n");
+
+                // accept next input
+                userInput = Console.ReadKey(true);
+
+                while (userInput.Key != ConsoleKey.Enter && userInput.Key != ConsoleKey.Escape)
+                {
+                    // if backspace, delete char and move indicator back
+                    if (userInput.Key == ConsoleKey.Backspace && newUserName.Length > 0)
+                    {
+                        Console.Write("\b \b");
+                        newUserName.Remove(newUserName.Length - 1, 1);
+                    }
+                    // otherwise append char to name and write char to console
+                    else
+                    {
+                        Console.Write(userInput.KeyChar);
+                        newUserName.Append(userInput.KeyChar);
+                    }
+                    // accept next input
+                    userInput = Console.ReadKey(true);
+                }
+
+                // if key to escape loop was enter, save new employee
+                if (userInput.Key == ConsoleKey.Enter)
+                {
+                    employees.Add(new Employee(newEmpName.ToString(), newUserName.ToString()));
+                    SaveEmployees(employees);
+                }
             }
         }
 
         static void RemoveEmployee()
         {
+            // TODO implement Esc to return
+
+
             Console.Clear();
-            Console.WriteLine("Select the number of the employee to delete. \n");
+            Console.WriteLine("Remove Employee \n");
 
             // list employees
             if (employees.Count > 0)
             {
+                Console.WriteLine("Select the number of the employee to delete. \n" +
+                    "Press [Esc] to cancel. \n");
                 for (int i = 0; i < Math.Min(employees.Count, MAX_COUNT); i++)
                 {
-                    Console.WriteLine($"[{i + 1}] {employees[i]}\n");
+                    Console.WriteLine($"[{i + 1}] {employees[i].EmployeeName}");
                 }
-                Console.WriteLine("\n");
             }
             else
             {
-                Console.WriteLine("No employees to remove. (If you can see this, Kyle did a bad job!)");
+                Console.WriteLine("No employees to remove. Press [Esc] to return. (If you can see this, Kyle did a bad job!)");
+            }
+
+            // get first input
+            ConsoleKeyInfo userInput = Console.ReadKey(true);
+
+            // loop so long as key is not Escape
+            while (userInput.Key != ConsoleKey.Escape)
+            {
             }
 
 
         }
 
-        static void SubmitLog(string empName)
+        static async Task<Consultation> SubmitConsultation(Employee emp)
         {
-
+            // collect information to post in consultation object
+            Consultation con = new Consultation(DateTime.Now, emp.EmployeeName, emp.Username);
+            // TODO unsure of URI
+            HttpResponseMessage response = await client.PutAsJsonAsync($"api/consultations/create", con);
+            response.EnsureSuccessStatusCode();
+            // Deserialize the updated product from the response body.
+            // TODO how is response differerent when creating vs updating? Is returning necessary?
+            con = await response.Content.ReadAsAsync<Consultation>();
+            return con;
         }
 
-        static void SubmitLocalLog(string empName)
+        static void SubmitLocalLog(Employee employee)
         {
             FileStream logFs = null;
             StreamWriter logSw = null;
@@ -230,13 +269,13 @@ namespace CHIPSQuickLog
                 string logDateTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
 
                 // append datetime and employee name
-                output.Append($"{logDateTime},{empName}\n");
+                output.Append($"{logDateTime},{employee.EmployeeName}\n");
 
                 // write to file
                 logSw.Write(output);
 
                 // show confirmation
-                Console.WriteLine($"Logged client consultation with {empName} @ {logDateTime}");
+                Console.WriteLine($"Logged client consultation with {employee.EmployeeName} @ {logDateTime}");
             }
 
             catch (Exception e)
@@ -250,11 +289,11 @@ namespace CHIPSQuickLog
             }
         }
 
-        static List<string> LoadEmployees()
-        {   
+        static List<Employee> LoadEmployees()
+        {
             FileStream empFs = null;
             StreamReader empSr = null;
-            List<string> employees = new List<string>();
+            List<Employee> employees = new List<Employee>();
             try
             {
                 // init emp IO
@@ -265,7 +304,7 @@ namespace CHIPSQuickLog
                 string jsonEmp = empSr.ReadToEnd();
                 if (jsonEmp == "") jsonEmp = "[]";
 
-                employees = JsonSerializer.Deserialize<List<string>>(jsonEmp);
+                employees = JsonSerializer.Deserialize<List<Employee>>(jsonEmp);
             }
             catch (Exception e)
             {
@@ -279,7 +318,7 @@ namespace CHIPSQuickLog
             return employees;
         }
 
-        static void SaveEmployees(List<string> employees)
+        static void SaveEmployees(List<Employee> employees)
         {
             FileStream empFs = null;
             StreamWriter empSw = null;
@@ -303,8 +342,6 @@ namespace CHIPSQuickLog
                 if (empSw != null) empSw.Close();
                 if (empFs != null) empFs.Close();
             }
-
-
         }
     }
 }
