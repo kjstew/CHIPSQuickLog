@@ -5,10 +5,18 @@
     <TargetFramework>netcoreapp3.1</TargetFramework>
     <ApplicationIcon>CHIPS Icon.ico</ApplicationIcon>
     <StartupObject>CHIPSQuickLog.Program</StartupObject>
+    <Platforms>AnyCPU;x86</Platforms>
+    <Product>CHIPS QuickLog</Product>
+    <Company>CHIPS</Company>
+    <Authors>Kyle Stewart</Authors>
   </PropertyGroup>
 
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
     <OutputPath></OutputPath>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x86'">
+    <OutputPath />
   </PropertyGroup>
 
   <ItemGroup>

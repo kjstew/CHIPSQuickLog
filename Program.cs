@@ -18,9 +18,12 @@ namespace CHIPSQuickLog
         const int MAX_COUNT = 9; // maximum number of employees that can be added (corresponds to keys 1-9)
         const ConsoleKey KEY_EMP_ADD = ConsoleKey.A;
         const ConsoleKey KEY_EMP_REMOVE = ConsoleKey.R;
-        const string CONSOLE_HEADER = "┌────────────────┐\n" +
-                                      "│ CHIPS QuickLog │\n" +
-                                      "└────────────────┘\n\n";
+        const string CONSOLE_HEADER = "    ____        _      __   __\n" +
+                                      "   / __ \\__  __(_)____/ /__/ /  ____  ____ _\n" +
+                                      "  / / / / / / / / ___/ //_/ /  / __ \\/ __ `/\n" +
+                                      " / /_/ / /_/ / / /__/ ,< / /__/ /_/ / /_/ /\n" +
+                                      " \\___\\_\\__,_/_/\\___/_/|_/_____\\____/\\__, /\n" +
+                                      "                                   /____/\n\n";
 
         static List<Employee> employees;
         static ConsoleKeyInfo userInput;
@@ -51,20 +54,21 @@ namespace CHIPSQuickLog
         static void MainMenu()
         {
             // create prompt
+            Console.Title = "CHIPS";
             Console.Clear();
             StringBuilder prompt = new StringBuilder();
             prompt.Append(CONSOLE_HEADER);
-            prompt.Append($"{employees.Count} employees found.\n\n");
+            prompt.Append($" {employees.Count} employees found.\n\n");
             if (employees.Count > MAX_COUNT)
             {
-                prompt.Append($"{employees.Count - MAX_COUNT} employee(s) will not be displayed. \n" +
-                    $"Manually adding employees to {ConfigurationManager.AppSettings.Get("EmpPath")} is not recommended. \n" +
-                    $"Please remove employees to clean up the list.\n\n");
+                prompt.Append($" {employees.Count - MAX_COUNT} employee(s) will not be displayed. \n" +
+                    $" Manually adding employees to {ConfigurationManager.AppSettings.Get("EmpPath")} is not recommended. \n" +
+                    $" Please remove employees to clean up the list.\n\n");
             }
             // list employees
             if (employees.Count > 0)
             {
-                prompt.Append("Press the number next to your name to log a consultation:\n\n");
+                prompt.Append(" Press the number next to your name to log a consultation:\n\n");
                 for (int i = 0; i < Math.Min(employees.Count, MAX_COUNT); i++)
                 {
                     prompt.Append($"[{i + 1}] {employees[i].EmployeeName}\n");
@@ -73,10 +77,10 @@ namespace CHIPSQuickLog
             }
             // list additional commands
             if (CanAddEmployee())
-                prompt.Append($"Press [{KEY_EMP_ADD}] to add an employee.\n");
+                prompt.Append($" Press [{KEY_EMP_ADD}] to add an employee.\n");
             if (CanRemoveEmployee())
-                prompt.Append($"Press [{KEY_EMP_REMOVE}] to remove an employee.\n");
-            prompt.Append($"Press [Esc] to quit.\n");
+                prompt.Append($" Press [{KEY_EMP_REMOVE}] to remove an employee.\n");
+            prompt.Append($" Press [Esc] to quit.\n");
             // write to console
             Console.WriteLine(prompt);
 
@@ -110,8 +114,8 @@ namespace CHIPSQuickLog
                     {
                         // submit consultation and get copy of consultation retrieved from api reponse
                         Consultation consultation = SubmitConsultation(employees[i - 1]).Result;
-                        Console.WriteLine($"Consultation logged to database ({consultation.UserName} at {consultation.Time})");
-                        Console.WriteLine("Press any key to exit or wait five seconds.");
+                        Console.WriteLine($" Consultation logged to database ({consultation.UserName} at {consultation.Time})");
+                        Console.WriteLine(" Press any key to exit or wait five seconds.");
                         int waitCounter = 0;
                         while (!Console.KeyAvailable && waitCounter < 10) // counter increments every half second
                         {
@@ -127,9 +131,9 @@ namespace CHIPSQuickLog
         static void AddEmployee()
         {
             Console.Clear();
-            Console.WriteLine(CONSOLE_HEADER + "> Add Employee \n\n" +
-                "Enter new employee name and press [Enter]. \n" +
-                "Press [Esc] to cancel.\n");
+            Console.WriteLine(CONSOLE_HEADER + " > Add Employee \n\n" +
+                " Enter new employee name and press [Enter]. \n" +
+                " Press [Esc] to cancel.\n");
 
             StringBuilder newEmpName = new StringBuilder();
             StringBuilder newUserName = new StringBuilder();
@@ -159,7 +163,7 @@ namespace CHIPSQuickLog
             } while (userInput.Key != ConsoleKey.Enter || newEmpName.Length == 0);
 
             // accept input for username
-            Console.WriteLine("\n\nPlease enter your CHIPSMgr username: \n");
+            Console.WriteLine("\n\n Please enter your CHIPSMgr username: \n");
             do
             {
                 // accept input
@@ -195,13 +199,13 @@ namespace CHIPSQuickLog
         static void RemoveEmployee()
         {
             Console.Clear();
-            Console.WriteLine(CONSOLE_HEADER + "> Remove Employee \n\n");
+            Console.WriteLine(CONSOLE_HEADER + " > Remove Employee \n\n");
 
             // list employees
             if (employees.Count > 0)
             {
-                Console.WriteLine("Select the number of the employee to delete. \n" +
-                    "Press [Esc] to cancel. \n");
+                Console.WriteLine(" Select the number of the employee to delete. \n" +
+                    " Press [Esc] to cancel. \n");
                 for (int i = 0; i < Math.Min(employees.Count, MAX_COUNT); i++)
                 {
                     Console.WriteLine($"[{i + 1}] {employees[i].EmployeeName}");
@@ -209,7 +213,7 @@ namespace CHIPSQuickLog
             }
             else
             {
-                Console.WriteLine("No employees to remove. Press [Esc] to return. (If you can see this, Kyle did a bad job!)");
+                Console.WriteLine(" No employees to remove. Press [Esc] to return. (If you can see this, Kyle did a bad job!)");
             }
 
             // loop unless key is Esc or a number key
@@ -229,8 +233,8 @@ namespace CHIPSQuickLog
                     if (userInput.Key.Equals(Enum.Parse(typeof(ConsoleKey), "D" + i.ToString())))
                     {
                         // provide confirmation
-                        Console.WriteLine("\nAre you sure you want to delete employee " + employees[i - 1].EmployeeName + "? " +
-                            "This cannot be undone. \nPress [Enter] to confirm, [Esc] to cancel.");
+                        Console.WriteLine("\n Are you sure you want to delete employee " + employees[i - 1].EmployeeName + "? " +
+                            " This cannot be undone. \nPress [Enter] to confirm, [Esc] to cancel.");
                         while (true)
                         {
                             userInput = Console.ReadKey(true);
@@ -274,11 +278,11 @@ namespace CHIPSQuickLog
                 // write to file
                 logSw.Write(output);
                 // show confirmation
-                Console.WriteLine($"Consultation logged locally.");
+                Console.WriteLine($" Consultation logged locally.");
             }
             catch (IOException ioe)
             {
-                Console.WriteLine("Consultation failed to log locally.");
+                Console.WriteLine(" Consultation failed to log locally.");
                 Console.WriteLine(ioe.Message);
             }
             finally
@@ -287,7 +291,7 @@ namespace CHIPSQuickLog
                 if (logFs != null) logFs.Close();
             }
 
-            Console.WriteLine($"Connecting to database...");
+            Console.WriteLine($" Connecting to database...");
 
             // upload consultation to db using api
             Consultation con = new Consultation(DateTime.Now, emp.Username);
