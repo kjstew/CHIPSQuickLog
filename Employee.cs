@@ -14,11 +14,5 @@ namespace CHIPSQuickLog
             this.EmployeeName = EmployeeName;
             this.Username = Username;
         }
-
-        // a parameterless constructor is required to deserialize Employees from json (current limitation of serializer, could make custom solution)
-        // https://github.com/dotnet/runtime/issues/30854
-        public Employee()
-        {
-        }
     }
 }

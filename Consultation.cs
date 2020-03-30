@@ -6,15 +6,16 @@ namespace CHIPSQuickLog
 {
     class Consultation
     {
-        DateTime LogDate;
-        string EmployeeName;
-        string Username;
+        public int Id;
+        public DateTime Time;
+        public string UserName;
 
-        public Consultation(DateTime dateTime, string employeeName, string username)
+        public Consultation(DateTime time, string username)
         {
-            this.LogDate = dateTime;
-            this.EmployeeName = employeeName;
-            this.Username = username;
+            this.Time = time;
+            // tried adding new field to db table but api requests failed -- investigate later
+            // this.EmployeeName = employeeName;
+            this.UserName = username;
         }
     }
 }
