@@ -18,25 +18,45 @@ namespace CHIPSQuickLog
         const int MAX_COUNT = 9; // maximum number of employees that can be added (corresponds to keys 1-9)
         const ConsoleKey KEY_EMP_ADD = ConsoleKey.A;
         const ConsoleKey KEY_EMP_REMOVE = ConsoleKey.R;
-        const string CONSOLE_HEADER = "    ____        _      __   __\n" +
+        const string CONSOLE_HEADER = "   ____        _      __   __\n" +
                                       "   / __ \\__  __(_)____/ /__/ /  ____  ____ _\n" +
                                       "  / / / / / / / / ___/ //_/ /  / __ \\/ __ `/\n" +
                                       " / /_/ / /_/ / / /__/ ,< / /__/ /_/ / /_/ /\n" +
                                       " \\___\\_\\__,_/_/\\___/_/|_/_____\\____/\\__, /\n" +
-                                      "                                   /____/\n\n";
+                                      "                                   /____/\n";
 
         static List<Employee> employees;
         static ConsoleKeyInfo userInput;
         static HttpClient client = new HttpClient();
-
+        static string apiKey = "";
         static void Main(string[] args)
         {
+            // get api key
+            FileStream apiFs = null;
+            StreamReader apiSr = null;
+            
+            try
+            {
+                apiFs = new FileStream(ConfigurationManager.AppSettings.Get("ApiPath"), FileMode.OpenOrCreate, FileAccess.Read);
+                apiSr = new StreamReader(apiFs);
+                apiKey = apiSr.ReadToEnd();
+            }
+            catch (IOException ioe)
+            {
+                WriteConsole("API I/O Error: " + ioe.Message);
+            }
+            finally
+            {
+                if (apiSr != null) apiSr.Close();
+                if (apiFs != null) apiFs.Close();
+            }
+
             // set api connection
             client.BaseAddress = new Uri("http://chipsmgr.com/");
             client.DefaultRequestHeaders.Accept.Clear();
             client.DefaultRequestHeaders.Accept.Add(
                 new MediaTypeWithQualityHeaderValue("application/json"));
-            client.DefaultRequestHeaders.Add("ApiKey", "ChipsAhoy!1"); // TODO change to random alphanumeric
+            client.DefaultRequestHeaders.Add("ApiKey", apiKey); // TODO change to random alphanumeric
 
             // set console window size
             Console.SetWindowSize(100, 30);
@@ -54,35 +74,40 @@ namespace CHIPSQuickLog
         static void MainMenu()
         {
             // create prompt
-            Console.Title = "CHIPS";
+            Console.Title = "CHIPS QuickLog";
             Console.Clear();
             StringBuilder prompt = new StringBuilder();
-            prompt.Append(CONSOLE_HEADER);
-            prompt.Append($" {employees.Count} employees found.\n\n");
+            // notify user if api is empty (first run)
+            if (apiKey == "")
+            {
+                WriteConsole("The file holding the API key (" + ConfigurationManager.AppSettings.Get("ApiPath") + ") is empty or was just created." );
+                WriteConsole("Add the Chips Service Manager API key to this file and try running again.");
+            }
+            WriteConsole(CONSOLE_HEADER);
+            WriteConsole($"(Employees: {employees.Count})\n");
+
             if (employees.Count > MAX_COUNT)
             {
-                prompt.Append($" {employees.Count - MAX_COUNT} employee(s) will not be displayed. \n" +
-                    $" Manually adding employees to {ConfigurationManager.AppSettings.Get("EmpPath")} is not recommended. \n" +
-                    $" Please remove employees to clean up the list.\n\n");
+                WriteConsole($"{employees.Count - MAX_COUNT} employee(s) will not be displayed.");
+                WriteConsole($"Manually adding employees to {ConfigurationManager.AppSettings.Get("EmpPath")} is not recommended.");
+                WriteConsole($"Please remove employees to clean up the list.\n");
             }
             // list employees
             if (employees.Count > 0)
             {
-                prompt.Append(" Press the number next to your name to log a consultation:\n\n");
+                WriteConsole("Press the number next to your name to log a consultation:\n");
                 for (int i = 0; i < Math.Min(employees.Count, MAX_COUNT); i++)
                 {
-                    prompt.Append($"[{i + 1}] {employees[i].EmployeeName}\n");
+                    WriteConsole($"[{i + 1}] {employees[i].EmployeeName}");
                 }
-                prompt.Append("\n");
+                WriteConsole();
             }
             // list additional commands
             if (CanAddEmployee())
-                prompt.Append($" Press [{KEY_EMP_ADD}] to add an employee.\n");
+                WriteConsole($"Press [{KEY_EMP_ADD}] to add an employee.");
             if (CanRemoveEmployee())
-                prompt.Append($" Press [{KEY_EMP_REMOVE}] to remove an employee.\n");
-            prompt.Append($" Press [Esc] to quit.\n");
-            // write to console
-            Console.WriteLine(prompt);
+                WriteConsole($"Press [{KEY_EMP_REMOVE}] to remove an employee.");
+            WriteConsole($"Press [Esc] to quit.\n");
 
             // accept input
             do
@@ -114,8 +139,7 @@ namespace CHIPSQuickLog
                     {
                         // submit consultation and get copy of consultation retrieved from api reponse
                         Consultation consultation = SubmitConsultation(employees[i - 1]).Result;
-                        Console.WriteLine($" Consultation logged to database ({consultation.UserName} at {consultation.Time})");
-                        Console.WriteLine(" Press any key to exit or wait five seconds.");
+                        WriteConsole("Press any key to exit or wait five seconds.");
                         int waitCounter = 0;
                         while (!Console.KeyAvailable && waitCounter < 10) // counter increments every half second
                         {
@@ -131,9 +155,10 @@ namespace CHIPSQuickLog
         static void AddEmployee()
         {
             Console.Clear();
-            Console.WriteLine(CONSOLE_HEADER + " > Add Employee \n\n" +
-                " Enter new employee name and press [Enter]. \n" +
-                " Press [Esc] to cancel.\n");
+            WriteConsole(CONSOLE_HEADER);
+            WriteConsole("> Add Employee\n");
+            WriteConsole("Enter new employee name and press [Enter].");
+            WriteConsole("Press [Esc] to cancel.\n");
 
             StringBuilder newEmpName = new StringBuilder();
             StringBuilder newUserName = new StringBuilder();
@@ -163,7 +188,8 @@ namespace CHIPSQuickLog
             } while (userInput.Key != ConsoleKey.Enter || newEmpName.Length == 0);
 
             // accept input for username
-            Console.WriteLine("\n\n Please enter your CHIPSMgr username: \n");
+            WriteConsole("\n");
+            WriteConsole("Please enter your CHIPSMgr username:\n");
             do
             {
                 // accept input
@@ -199,21 +225,23 @@ namespace CHIPSQuickLog
         static void RemoveEmployee()
         {
             Console.Clear();
-            Console.WriteLine(CONSOLE_HEADER + " > Remove Employee \n\n");
+            WriteConsole(CONSOLE_HEADER);
+            WriteConsole("> Remove Employee \n");
 
             // list employees
             if (employees.Count > 0)
             {
-                Console.WriteLine(" Select the number of the employee to delete. \n" +
-                    " Press [Esc] to cancel. \n");
+                WriteConsole("Select the number of the employee to delete.");
+                WriteConsole("Press [Esc] to cancel. \n");
                 for (int i = 0; i < Math.Min(employees.Count, MAX_COUNT); i++)
                 {
-                    Console.WriteLine($"[{i + 1}] {employees[i].EmployeeName}");
+                    WriteConsole($"[{i + 1}] {employees[i].EmployeeName}");
                 }
+                WriteConsole();
             }
             else
             {
-                Console.WriteLine(" No employees to remove. Press [Esc] to return. (If you can see this, Kyle did a bad job!)");
+                WriteConsole("No employees to remove. Press [Esc] to return. (If you can see this, Kyle did a bad job!)");
             }
 
             // loop unless key is Esc or a number key
@@ -233,8 +261,8 @@ namespace CHIPSQuickLog
                     if (userInput.Key.Equals(Enum.Parse(typeof(ConsoleKey), "D" + i.ToString())))
                     {
                         // provide confirmation
-                        Console.WriteLine("\n Are you sure you want to delete employee " + employees[i - 1].EmployeeName + "? " +
-                            " This cannot be undone. \nPress [Enter] to confirm, [Esc] to cancel.");
+                        WriteConsole("Are you sure you want to delete employee " + employees[i - 1].EmployeeName + "? This cannot be undone.");
+                        WriteConsole("Press [Enter] to confirm, [Esc] to cancel.\n");
                         while (true)
                         {
                             userInput = Console.ReadKey(true);
@@ -278,12 +306,12 @@ namespace CHIPSQuickLog
                 // write to file
                 logSw.Write(output);
                 // show confirmation
-                Console.WriteLine($" Consultation logged locally.");
+                WriteConsole($"Consultation logged locally.");
             }
             catch (IOException ioe)
             {
-                Console.WriteLine(" Consultation failed to log locally.");
-                Console.WriteLine(ioe.Message);
+                WriteConsole("ERROR: Consultation failed to log locally.");
+                WriteConsole(ioe.Message);
             }
             finally
             {
@@ -291,14 +319,23 @@ namespace CHIPSQuickLog
                 if (logFs != null) logFs.Close();
             }
 
-            Console.WriteLine($" Connecting to database...");
+            WriteConsole($"Connecting to database...");
 
             // upload consultation to db using api
             Consultation con = new Consultation(DateTime.Now, emp.Username);
-            HttpResponseMessage response = await client.PostAsJsonAsync($"api/consultations", con);
-            response.EnsureSuccessStatusCode();
-            // return consultation from response
-            con = await response.Content.ReadAsAsync<Consultation>();
+            try
+            {
+                HttpResponseMessage response = await client.PostAsJsonAsync($"api/consultations", con);
+                response.EnsureSuccessStatusCode();
+                // return consultation from response
+                con = await response.Content.ReadAsAsync<Consultation>();
+                WriteConsole($"Consultation logged to database ({con.UserName} at {con.Time})");
+            }
+            catch (HttpRequestException)
+            {
+                WriteConsole("ERROR: Could not connect to database. Please check connection.");
+            }
+            
             return con;
         }
 
@@ -319,9 +356,9 @@ namespace CHIPSQuickLog
 
                 employees = JsonConvert.DeserializeObject<List<Employee>>(jsonEmp);
             }
-            catch (Exception e)
+            catch (IOException ioe)
             {
-                Console.WriteLine(e.Message);
+                WriteConsole(ioe.Message);
             }
             finally
             {
@@ -346,9 +383,9 @@ namespace CHIPSQuickLog
 
                 empSw.Write(jsonEmp);
             }
-            catch (Exception e)
+            catch (IOException ioe)
             {
-                Console.WriteLine(e.Message);
+                WriteConsole(ioe.Message);
             }
             finally
             {
@@ -363,12 +400,13 @@ namespace CHIPSQuickLog
             if (employees.Count < MAX_COUNT) return true;
             return false;
         }
-
         static bool CanRemoveEmployee()
         {
             if (employees.Count > 0) return true;
             return false;
         }
-
+        static void WriteConsole() { Console.WriteLine(); }
+        // currently only adds a space before writing to console for left padding
+        static void WriteConsole(string str) { Console.WriteLine(" " + str); }
     }
 }
