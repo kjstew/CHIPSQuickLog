@@ -325,7 +325,7 @@ namespace CHIPSQuickLog
             Consultation con = new Consultation(DateTime.Now, emp.Username);
             try
             {
-                HttpResponseMessage response = await client.PostAsJsonAsync($"api/consultations", con);
+                HttpResponseMessage response = await client.PostAsJsonAsync($"api/consultation", con);
                 response.EnsureSuccessStatusCode();
                 // return consultation from response
                 con = await response.Content.ReadAsAsync<Consultation>();
